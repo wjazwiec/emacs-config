@@ -1,0 +1,452 @@
+#+TITLE: ORG'ish Emacs 
+#+AUTHOR: Kuba Skretkowicz 
+#+BABEL: :cache yes
+# -*- mode: org; coding: utf-8; -*-
+#+PROPERTY: header-args :tangle yes
+
+* Init Part
+** Save itself
+   
+   #+BEGIN_SRC emacs-lisp :tangle no
+   ;; Auto generated init
+
+   (require 'org)
+   ;; Search for init.org
+   (find-file 
+   (concat user-emacs-directory "init.org"))
+   ;; Extract code blocks to init.el, load and compile
+   (org-babel-tangle)
+   (load-file (concat user-emacs-directory "init.el"))
+   (byte-compile-file (concat user-emacs-directory "init.el"))
+
+   #+END_SRC
+
+   #+BEGIN_SRC emacs-lisp
+   (defun tangle-init ()
+     "If 'init.org' tangle it and compile."
+     (when (equal (buffer-file-name)
+                  (expand-file-name 
+		  (concat user-emacs-directory "init.org")))
+       (let ((prog-mode-hook nil))
+         (org-babel-tangle)
+         (byte-compile-file (concat user-emacs-directory "init.el")))))
+
+   (add-hook 'after-save-hook 'tangle-init)
+   #+END_SRC
+
+** TODO private stuff 
+    #+BEGIN_SRC emacs-lisp
+   (add-hook
+    'after-init-hook
+    (lambda ()
+    (let ((private-file (concat user-emacs-directory "priv.el")))
+    (when (file-exists-p private-file)
+    (load-file private-file)))))
+   #+END_SRC
+
+* Configuration
+** Better defaults
+*** Setq variables in one place
+
+   #+BEGIN_SRC emacs-lisp
+   (setq auto-revert-interval 1            ; Refresh buffers fast
+         custom-file (make-temp-file "")   ; Discard customization's
+         echo-keystrokes 0.1               ; Show keystrokes asap
+         inhibit-startup-message t         ; No splash screen please
+         initial-scratch-message nil       ; Clean scratch buffer
+          use-dialog-box nil                ; Without annoying beeps
+         ring-bell-function 'ignore        ; 
+          visible-bell t                    ;
+         select-enable-clipboard t         ; Fix clipbboard
+         show-paren-delay 0                ; disable delay for paren mode
+         make-backup-files nil             ; stop ~files
+         auto-save-default nil             ; stop #files
+         create-lockfiles nil              ; stop symlinks
+         savehist-file "~/.emacs.d/savehist"
+         history-length t
+         history-delete-duplicates t
+         savehist-save-minibuffer-history 1
+         sentence-end-double-space nil     ; No double space
+                      ; indentation
+         compilation-scroll-output 'first-error
+         require-final-newline t
+         ripgrep-arguments (quote ("--ignore-file ~/.rgignore" "--smart-case")))
+         (savehist-mode 1)
+   #+END_SRC
+	 
+*** Programmin style C/C++
+
+   #+BEGIN_SRC emacs-lisp
+   (defconst custom-style
+   '(
+     (indent-tabs-mode . nil)                   
+     (c-basic-offset . 4)         
+     (c-default-style . "bsd")              
+     (c-offsets-alist . ((substatement-open . 0)                  
+     (case-label . +)                         
+     (inline-open . 0)                        
+     (block-open . 0)                         
+     (statement-cont . +)                     
+     (inextern-lang . 0)                      
+     (innamespace . 0))))
+     "My style")
+     (c-add-style "PERSONAL" custom-style)
+     ;; Customizations for all modes in CC Mode.
+     (defun my-c-mode-common-hook ()
+     ;; set my personal style for the current buffer
+     (c-set-style "PERSONAL")
+     ;; other customizations
+     (setq tab-width 2
+     ;; this will make sure spaces are used instead of tabs
+     indent-tabs-mode nil
+     c-default-style "bsd"))
+     (add-hook 'c-mode-common-hook 'my-c-mode-common-hook)
+   #+END_SRC
+
+*** Setq default
+
+   #+BEGIN_SRC emacs-lisp
+   (setq-default fill-column 120                   ; Maximum line width
+                 truncate-lines t                  ; Don't fold lines
+		 cursor-type 'box                  ; Change cursor
+                 indent-tabs-mode nil)             ; Spaces
+   #+END_SRC
+   
+*** Additional directory for extra *.el files
+   #+BEGIN_SRC emacs-lisp
+   (let ((default-directory (concat user-emacs-directory "extra/")))
+     (when (file-exists-p default-directory)
+       (setq load-path
+             (append
+              (let ((load-path (copy-sequence load-path)))
+                (normal-top-level-add-subdirs-to-load-path)) load-path))))
+   #+END_SRC
+
+*** Misc 
+
+   Change yes or no to y or n
+   #+BEGIN_SRC emacs-lisp
+   (fset 'yes-or-no-p 'y-or-n-p)
+   #+END_SRC
+
+   Disable all at once
+   #+BEGIN_SRC emacs-lisp
+   (dolist (mode'(
+                 menu-bar-mode            ; no menu
+                 tool-bar-mode            ; disable toolbars
+                 scroll-bar-mode          ; disable scroll bars 
+                 global-hl-line-mode      ; disable scroll bars 
+                 blink-cursor-mode))      ; disable cursor blinking
+     (funcall mode 0))
+   #+END_SRC
+
+   Enable at once
+   #+BEGIN_SRC emacs-lisp
+   (dolist (mode'(
+                 delete-selection-mode            ; fix deleting
+                 transient-mark-mode              ; better marking
+                 column-number-mode               ; show columnt number
+                 show-paren-mode                  ; show parents 
+                 winner-mode))                    ; do/undo window configuration
+     (funcall mode t))
+   #+END_SRC
+
+   Enable windmove bindings shift + arrow
+   #+BEGIN_SRC emacs-lisp  
+   (windmove-default-keybindings)   
+   (global-set-key (kbd "M-[ d")    'windmove-left)
+   (global-set-key (kbd "M-[ c")   'windmove-right)
+   (global-set-key (kbd "M-[ b")    'windmove-down)
+   (global-set-key (kbd "M-[ a")      'windmove-up)
+   #+END_SRC
+
+   White space mode no trailing and 80 column
+   #+BEGIN_SRC emacs-lisp  
+   (setq whitespace-style '(trailing lines space-before-tab
+     indentation space-after-tab)
+     whitespace-line-column 80)
+   #+END_SRC
+   
+   Color compilation buffer
+   #+BEGIN_SRC emacs-lisp  
+   (require 'ansi-color)
+   (defun colorize-compilation-buffer ()
+   (let ((inhibit-read-only t))
+       (ansi-color-apply-on-region (point-min) (point-max))))
+   (add-hook 'compilation-filter-hook 'colorize-compilation-buffer)
+   #+END_SRC
+
+** Packages   
+*** Repositories
+   Add melpa to repositories
+   #+BEGIN_SRC emacs-lisp
+   (package-initialize)
+   (require 'package)
+   (add-to-list 'package-archives
+      '("melpa" . "http://melpa.milkbox.net/packages/") t)
+   #+END_SRC
+
+*** TODO Proxy does not work
+   #+BEGIN_SRC emacs-lisp
+   (defun proxy-toggle ()
+   (setq url-proxy-services          
+        '(("no_proxy" . "^\\(localhost\\|10.*\\)")
+          ("http" . "10.144.1.10:8080")
+          ("https" . "10.144:1.10:8080"))))  
+
+   (defun configuration/apply-keyboard-bindings (pair)
+   "Apply keyboard-bindings for supplied list of key-pair values"
+   (global-set-key (kbd (car pair))
+                  (cdr pair)))
+
+  
+   (defvar configuration/my-keyboard-bindings 
+          '(("<f6>" . proxy-toggle)))
+
+   (mapc 'configuration/apply-keyboard-bindings
+   configuration/my-keyboard-bindings)
+   #+END_SRC
+
+*** Use package
+    Bootstrap `use-package'
+    #+BEGIN_SRC emacs-lisp
+    (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
+    (package-install 'use-package))
+    (require 'bind-key)
+    #+END_SRC
+
+*** Expand region
+   #+BEGIN_SRC emacs-lisp   
+   (use-package expand-region
+   :ensure t
+   :init
+   :bind 
+   ("C-M-z" . er/expand-region)
+   ("C-M-x" . er/contract-region))
+   #+END_SRC
+
+   In never emacs package behaves differently - fix for expand region
+   #+BEGIN_SRC emacs-lisp  
+   (defalias 'save-mark-and-excursion 'save-excursion)
+   #+END_SRC   
+ 
+*** Projectile
+   #+BEGIN_SRC emacs-lisp   
+   (use-package projectile
+   :ensure t
+   :config
+   (projectile-mode)
+   (setq projectile-completion-system 'ivy))
+   (projectile-mode +1)
+   (define-key projectile-mode-map (kbd "C-c p") 'projectile-command-map)
+   #+END_SRC
+
+*** Helm
+   #+BEGIN_SRC emacs-lisp   
+   (use-package helm
+   :diminish helm-mode
+   :init
+   (progn
+     (require 'helm-config)
+     (setq helm-candidate-number-limit 100)
+     (setq helm-idle-delay 0.0 ; update fast sources immediately (doesn't).
+          helm-input-idle-delay 0.01  ; this actually updates things
+                                        ; reeeelatively quickly.
+          helm-yas-display-key-on-candidate t
+          helm-quick-update t
+          helm-M-x-requires-pattern nil
+          helm-ff-skip-boring-files t)
+     (helm-mode))
+   :bind (("C-c h" . helm-mini)
+          ("C-h a" . helm-apropos)
+          ("C-x C-b" . helm-buffers-list)
+          ("C-x b" . helm-buffers-list)
+          ("M-y" . helm-show-kill-ring)
+          ("M-x" . helm-M-x)
+          ("C-x c o" . helm-occur)
+          ("C-x c s" . helm-swoop)
+          ("C-x c SPC" . helm-all-mark-rings)))
+   (ido-mode -1) ;; Turn off ido mode in case I enabled it accidentally
+
+   (use-package helm-config
+   :init
+   :bind
+   ("C-x b" . helm-buffers-list)
+   ("C-x r b" . helm-bookmarks)
+   ("C-x m" . helm-M-x)
+   ("M-y" . helm-show-kill-ring)
+   ("C-x C-f" . helm-find-files)
+   ("M-<up>"  . helm-all-mark-rings)
+   )
+
+   ;; for helm-find-files
+   (customize-set-variable 'helm-ff-lynx-style-map t)
+   
+   ;; for helm-imenu
+   (customize-set-variable 'helm-imenu-lynx-style-map t)
+   
+   ;; for semantic
+   (customize-set-variable 'helm-semantic-lynx-style-map t)
+   
+   ;; for helm-occur
+   (customize-set-variable 'helm-occur-use-ioccur-style-keys t)
+   
+   ;; for helm-grep
+   (customize-set-variable 'helm-grep-use-ioccur-style-keys t)
+   (define-key helm-map (kbd "<left>") 'helm-previous-source)
+   (define-key helm-map (kbd "<right>") 'helm-next-source)
+   
+   #+END_SRC   
+
+*** Helm projectile
+   #+BEGIN_SRC emacs-lisp   
+   (use-package helm-projectile
+   :ensure t
+   :init
+   :config
+   (helm-projectile-on)
+   (setq projectile-enable-caching t)
+   (add-to-list 'projectile-globally-ignored-directories ".tmp_svn_workspace ")
+   )
+   #+END_SRC   
+
+*** Helm swoop
+   #+BEGIN_SRC emacs-lisp   
+   (use-package helm-swoop
+   :ensure t
+   :bind
+   (("M-s s" . helm-swoop)
+   )
+   :config
+   (progn
+   (define-key isearch-mode-map (kbd "M-i") 'helm-swoop-from-isearch)
+   (define-key helm-swoop-map (kbd "M-i") 'helm-multi-swoop-all-from-helm-swoop))
+   )
+   #+END_SRC   
+
+*** Auto pair
+   #+BEGIN_SRC emacs-lisp   
+   (use-package autopair
+   :ensure t
+   :config (autopair-global-mode))
+   #+END_SRC   
+
+*** TODO xcscope switch to ggtags
+   #+BEGIN_SRC emacs-lisp   
+   (use-package xcscope
+   :ensure t
+   :config (cscope-setup))
+   #+END_SRC   
+
+*** Helm csco
+
+   #+BEGIN_SRC emacs-lisp   
+   (use-package helm-cscope
+   :ensure t
+   :config
+   ;; Enable helm-cscope-mode
+   (add-hook 'c-mode-hook 'helm-cscope-mode)
+   (add-hook 'c++-mode-hook 'helm-cscope-mode))
+   #+END_SRC   
+
+*** Helm rg
+   #+BEGIN_SRC emacs-lisp   
+   (use-package helm-rg
+   :ensure t
+   :init
+   :bind(
+   ("M-s M-s" . helm-rg)))
+   ()
+   #+END_SRC   
+
+*** Magits
+   #+BEGIN_SRC emacs-lisp   
+   (use-package magit
+   :ensure t)
+   #+END_SRC   
+
+
+*** Ace jump
+   #+BEGIN_SRC emacs-lisp   
+   (use-package ace-jump-mode
+   :ensure t
+   :commands ace-jump-mode
+   :init
+   :bind(
+   ("C-c SPC" . ace-jump-mode)))
+   #+END_SRC   
+
+*** Rainbow delimiters
+   #+BEGIN_SRC emacs-lisp   
+   (use-package rainbow-delimiters
+   :ensure t
+   :init
+   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode))
+   #+END_SRC   
+
+*** Undo tree
+   #+BEGIN_SRC emacs-lisp   
+   (use-package undo-tree
+   :diminish undo-tree-mode
+   :config
+   (progn
+       (global-undo-tree-mode)
+       (setq undo-tree-visualizer-timestamps t)
+       (setq undo-tree-visualizer-diff t))
+   :bind
+    ("M-/" . undo-tree-visualize))
+   #+END_SRC   
+
+*** Which key
+   #+BEGIN_SRC emacs-lisp   
+   (use-package which-key
+   :ensure t
+   :config
+   (which-key-mode))
+   #+END_SRC   
+
+*** Projectile ripgrep
+   #+BEGIN_SRC emacs-lisp   
+   (use-package ripgrep
+   :ensure t)
+
+   (use-package projectile-ripgrep
+   :ensure t
+   :bind
+   ("M-s M-s" . projectile-ripgrep))
+   #+END_SRC   
+
+*** Whitespace trimm
+   #+BEGIN_SRC emacs-lisp   
+   (use-package ws-butler
+   :ensure t
+   :init
+   (add-hook 'prog-mode-hook #'ws-butler-mode))
+   #+END_SRC   
+
+*** Diff Hl
+   #+BEGIN_SRC emacs-lisp   
+   (use-package diff-hl
+   :ensure t
+   :config
+   (diff-hl-margin-mode)
+   :bind
+   ("<f11>" . diff-hl-mode))
+   #+END_SRC   
+
+
+** Additional Bindings 
+  #+BEGIN_SRC emacs-lisp
+  (defvar customs-map (make-keymap)
+    "Custom")
+  #+END_SRC
+
+  
+* Themes
+** Todo Light
+** Dark
+   #+BEGIN_SRC emacs-lisp
+   (load-theme 'wombat t)
+   #+END_SRC
+
